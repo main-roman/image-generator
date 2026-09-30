@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Генератор образов</title>
+<style>
+  :root { --bg:#14120f; --fg:#efe8da; --dim:#8d8677; --accent:#d9a441; --card:#1e1b16; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:Georgia,serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:24px 16px; }
+  h1 { font-weight:normal; letter-spacing:.15em; text-transform:uppercase; font-size:1rem; color:var(--dim); }
+  #cards { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; width:100%; max-width:640px; }
+  .card { background:var(--card); border:1px solid #2c2820; border-radius:8px; padding:16px; min-height:96px; cursor:pointer; transition:border-color .2s; }
+  .card.locked { border-color:var(--accent); }
+  .card small { display:block; color:var(--dim); font-size:.7rem; text-transform:uppercase; letter-spacing:.12em; margin-bottom:8px; }
+  .card span { font-size:1.15rem; line-height:1.35; }
+  .hint { color:var(--dim); font-size:.8rem; margin:12px 0; text-align:center; }
+  .row { display:flex; gap:10px; margin:8px 0 20px; }
+  button { background:var(--accent); color:#14120f; border:0; border-radius:6px; padding:12px 22px; font:inherit; font-size:1rem; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--fg); border:1px solid #3a352b; }
+  #saved { width:100%; max-width:640px; }
+  #saved h2 { font-weight:normal; font-size:.9rem; color:var(--dim); text-transform:uppercase; letter-spacing:.12em; }
+  .item { border-top:1px solid #2c2820; padding:12px 0; display:flex; justify-content:space-between; gap:12px; line-height:1.4; }
+  .item button { padding:2px 10px; background:transparent; color:var(--dim); border:1px solid #3a352b; }
+  @media (max-width:480px){ #cards{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<h1>Генератор образов</h1>
+<div id="cards"></div>
+<p class="hint">Клик по карточке фиксирует её, и при следующем броске она не меняется. Пробел — бросок.</p>
+<div class="row">
+  <button id="roll">Бросить</button>
+  <button id="save" class="ghost">Сохранить образ</button>
+</div>
+<div id="saved"><h2>Сохранённые</h2><div id="list"></div></div>
+
+<script>
+const DATA = {
+  "Место": ["пустой вокзал ночью","коммунальная кухня","крыша панельного дома","закрытый бассейн","деревенский автобус","лестничная клетка","пляж в межсезонье","школьный спортзал летом","заброшенный кинотеатр","лифт между этажами","поле после дождя","прачечная самообслуживания"],
+  "Деталь": ["мокрые следы на полу","жёлтая лампа, которая мигает","чужой шарф на перилах","недопитый чай","тикающие часы без стрелок","выцветшая афиша","детский рисунок мелом","звонок, на который никто не отвечает","открытое окно в мороз","связка ключей без замка"],
+  "Звук": ["далёкий поезд","радио на соседней волне","капель","шаги этажом выше","гул холодильника","чьё-то дыхание","скрип качелей","чужой смех за стеной","тишина после хлопка двери","звон посуды"],
+  "Действие": ["человек ждёт и не признаётся в этом","двое молча передают друг другу сумку","кто-то что-то ищет и забыл, что","ребёнок повторяет за взрослым каждый жест","женщина складывает вещи и раскладывает обратно","мужчина улыбается в пустоту","двое расходятся, не оглянувшись","кто-то учит чужой текст вслух"]
+};
+const keys = Object.keys(DATA);
+const state = {}; const locked = {};
+const cards = document.getElementById('cards');
+const list = document.getElementById('list');
+
+keys.forEach(k => {
+  const d = document.createElement('div'); d.className='card'; d.dataset.k=k;
+  d.innerHTML = `<small>${k}</small><span></span>`;
+  d.onclick = () => { locked[k] = !locked[k]; d.classList.toggle('locked', !!locked[k]); };
+  cards.appendChild(d);
+});
+
+function roll() {
+  keys.forEach(k => {
+    if (locked[k]) return;
+    const arr = DATA[k]; let v;
+    do { v = arr[Math.floor(Math.random()*arr.length)]; } while (v === state[k] && arr.length > 1);
+    state[k] = v;
+    cards.querySelector(`[data-k="${k}"] span`).textContent = v;
+  });
+}
+
+function load() { try { return JSON.parse(localStorage.getItem('images') || '[]'); } catch { return []; } }
+function store(a) { try { localStorage.setItem('images', JSON.stringify(a)); } catch {} }
+function render() {
+  const a = load(); list.innerHTML = '';
+  a.forEach((t, i) => {
+    const r = document.createElement('div'); r.className='item';
+    r.innerHTML = `<div></div><button title="Убрать">×</button>`;
+    r.firstChild.textContent = t;
+    r.lastChild.onclick = () => { a.splice(i,1); store(a); render(); };
+    list.appendChild(r);
+  });
+}
+document.getElementById('roll').onclick = roll;
+document.getElementById('save').onclick = () => {
+  const a = load();
+  a.unshift(`${state["Место"]}. ${state["Деталь"]}. Звук: ${state["Звук"]}. ${state["Действие"][0].toUpperCase()+state["Действие"].slice(1)}.`);
+  store(a); render();
+};
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); roll(); } });
+roll(); render();
+</script>
+</body>
+</html>
